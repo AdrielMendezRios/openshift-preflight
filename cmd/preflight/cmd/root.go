@@ -21,6 +21,7 @@ import (
 )
 
 var configFileUsed bool
+var currentLogrusLogger *logrus.Logger
 
 func init() {
 	cobra.OnInitialize(func() { initConfig(viper.Instance()) })
@@ -149,4 +150,59 @@ func preRunConfig(cmd *cobra.Command, args []string) {
 	ctrl.SetLogger(logr.Discard())
 
 	cmd.SetContext(ctx)
+	currentLogrusLogger = l
+}
+
+func openLogInArtifactPlatformDir(platform string) {
+	if !viper.Instance().GetBool("offline") {
+		return
+	}
+
+	if currentLogrusLogger == nil {
+		return
+	}
+
+	viper := viper.Instance()
+	logname := viper.GetString("logfile")
+	baseLogName := filepath.Base(logname)
+	artifactsDir := viper.GetString("artifacts")
+	platformDir := filepath.Join(artifactsDir, platform)
+
+	_ = os.MkdirAll(platformDir, 0o777)
+
+	// open preflight.log file in the current platforms artifacts/<platform>/preflight.log
+	artifactsPlatformLogFile, err := os.OpenFile(filepath.Join(platformDir, baseLogName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return
+	}
+
+	// make a new hook to make sure only the logs for the current platform are written to artifacts/<platform>/preflight.log
+	platformHook := &platformLogHook{writer: artifactsPlatformLogFile}
+
+	// make sure all log levels are present for hook writer in artifacts/<platform>/preflight.log
+	hooksLevels := make(logrus.LevelHooks)
+	for _, level := range logrus.AllLevels {
+		hooksLevels[level] = []logrus.Hook{platformHook}
+	}
+
+	// replace any previous hook with the new one
+	currentLogrusLogger.ReplaceHooks(hooksLevels)
+}
+
+type platformLogHook struct {
+	writer io.Writer
+}
+
+func (h *platformLogHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (h *platformLogHook) Fire(entry *logrus.Entry) error {
+	line, err := entry.String()
+	if err != nil {
+		return err
+	}
+
+	_, err = h.writer.Write([]byte(line))
+	return err
 }
