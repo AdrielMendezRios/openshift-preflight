@@ -136,8 +136,8 @@ func checkContainerRunE(cmd *cobra.Command, args []string, runpreflight runPrefl
 	}
 
 	for _, platform := range containerImagePlatforms {
-		// open log file in artifact/<platform>
-		openLogInArtifactPlatformDir(platform)
+		// open log file in artifact/<platform>/preflight.log
+		openLogInArtifactPlatformDir(ctx, platform)
 		logger.Info(fmt.Sprintf("running checks for %s for platform %s", containerImage, platform))
 		artifactsWriter, err := artifacts.NewFilesystemWriter(artifacts.WithDirectory(filepath.Join(cfg.Artifacts, platform)))
 		if err != nil {
