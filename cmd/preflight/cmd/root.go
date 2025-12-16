@@ -142,6 +142,7 @@ func preRunConfig(cmd *cobra.Command, args []string) {
 
 	logger := logrusr.New(l)
 	ctx := logr.NewContext(cmd.Context(), logger)
+	ctx = artifacts.ContextWithLogrusLogger(ctx, l)
 
 	// Setting the controller-runtime logger to a no-op logger by default,
 	// unless debug mode is enabled. This is because the controller-runtime
@@ -150,15 +151,11 @@ func preRunConfig(cmd *cobra.Command, args []string) {
 	ctrl.SetLogger(logr.Discard())
 
 	cmd.SetContext(ctx)
-	currentLogrusLogger = l
 }
 
-func openLogInArtifactPlatformDir(platform string) {
-	if !viper.Instance().GetBool("offline") {
-		return
-	}
-
-	if currentLogrusLogger == nil {
+func openLogInArtifactPlatformDir(ctx context.Context, platform string) {
+	logger := artifacts.LogrusLoggerFromContext(ctx)
+	if logger == nil {
 		return
 	}
 
@@ -186,7 +183,8 @@ func openLogInArtifactPlatformDir(platform string) {
 	}
 
 	// replace any previous hook with the new one
-	currentLogrusLogger.ReplaceHooks(hooksLevels)
+	logger.ReplaceHooks(hooksLevels)
+
 }
 
 type platformLogHook struct {

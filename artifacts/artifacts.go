@@ -7,6 +7,8 @@ package artifacts
 import (
 	"context"
 	"io"
+
+	"github.com/sirupsen/logrus"
 )
 
 const DefaultArtifactsDir = "artifacts"
@@ -34,4 +36,23 @@ const artifactWriterContextKey contextKey = "ArtifactWriter"
 // ArtifactWriter is the functionality required by all implementations.
 type ArtifactWriter interface {
 	WriteFile(filename string, contents io.Reader) (fullpathToFile string, err error)
+}
+
+// logrusContextKey is a key used to store/retrieve logrus.Logger in/from context.Context.
+type logrusContextKey string
+
+const logrusLoggerContextKey logrusContextKey = "LogrusLogger"
+
+// ContextWithLogrusLogger adds logrus.Logger l to the context ctx.
+func ContextWithLogrusLogger(ctx context.Context, l *logrus.Logger) context.Context {
+	return context.WithValue(ctx, logrusLoggerContextKey, l)
+}
+
+// LogrusLoggerFromContext returns the logrus.Logger from the context, or nil.
+func LogrusLoggerFromContext(ctx context.Context) *logrus.Logger {
+	l := ctx.Value(logrusLoggerContextKey)
+	if logger, ok := l.(*logrus.Logger); ok {
+		return logger
+	}
+	return nil
 }
